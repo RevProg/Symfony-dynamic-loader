@@ -5,6 +5,7 @@ namespace Components\Routing;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 use Symfony\Component\HttpKernel\EventListener\RouterListener;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Matcher\UrlMatcher;
 use Symfony\Component\Routing\RequestContext;
@@ -20,10 +21,10 @@ class DynamicRouterListener extends RouterListener
 
     protected $path;
 
-    function __construct(RequestStack $requestStack)
+    public function __construct(RequestStack $requestStack)
     {
         $this->path = $requestStack->getCurrentRequest()->getPathInfo() ?: '/';
-        
+
         $this->routes = new RouteCollection();
         parent::__construct(
             new UrlMatcher($this->routes, new RequestContext()), $requestStack
@@ -36,10 +37,15 @@ class DynamicRouterListener extends RouterListener
     {
         $pathInfo = explode('/', $this->path);
         $pathInfo = array_filter($pathInfo);
+        $params = array_splice($pathInfo, 3);
+
+        if (count($params) % 2 != 0) {
+            throw new BadRequestHttpException('Invalid params');
+        }
 
         $controller = 'AppBundle:Default:index';
 
-        switch(count($pathInfo)) {
+        switch (count($pathInfo)) {
             case 3:
                 $controller = str_ireplace('index', array_pop($pathInfo), $controller);
             case 2:
@@ -52,8 +58,12 @@ class DynamicRouterListener extends RouterListener
             '_controller' => $controller,
         ];
 
+        for ($i = 0; $i < count($params); $i += 2) {
+            $defaults[$params[$i]] = $params[$i + 1];
+        }
+
         $this->routes->add(
-            'dynamic_route_' . ($this->routes->count() + 1),
+            'dynamic_route_'.($this->routes->count() + 1),
             new Route(
                 $this->path,
                 $defaults,
@@ -66,7 +76,7 @@ class DynamicRouterListener extends RouterListener
     {
         try {
             parent::onKernelRequest($event);
-        } catch(NotFoundHttpException $e) {
+        } catch (NotFoundHttpException $e) {
         }
     }
 }

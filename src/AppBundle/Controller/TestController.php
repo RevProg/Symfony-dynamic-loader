@@ -13,8 +13,8 @@ class TestController extends Controller
         return new Response('Index action');
     }
 
-    public function testAction(Request $request)
+    public function testAction(Request $request, $id)
     {
-        return new Response('Test action');
+        return new Response('Test action. Id = '.$id);
     }
 }
